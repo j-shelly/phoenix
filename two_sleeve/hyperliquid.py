@@ -151,8 +151,9 @@ class HyperliquidPublic:
             "hours": len(rates),
         }
 
-    def daily_closes(self, coin: str, days: int) -> tuple[list[float], list[float], list[float]]:
-        """(highs, lows, closes) from daily candles, oldest first."""
+    def daily_bars(self, coin: str, days: int) -> tuple[list[float], list[float], list[float], list[float]]:
+        """(highs, lows, closes, volumes) from daily candles, oldest first.
+        Volume is in base units — only meaningful relative to itself."""
         now_ms = int(time.time() * 1000)
         start_ms = now_ms - (days + 2) * 24 * 3600 * 1000
         bars = self.candles(coin, "1d", start_ms, now_ms)
@@ -160,4 +161,5 @@ class HyperliquidPublic:
         highs = [float(b["h"]) for b in bars]
         lows = [float(b["l"]) for b in bars]
         closes = [float(b["c"]) for b in bars]
-        return highs, lows, closes
+        volumes = [float(b["v"]) for b in bars]
+        return highs, lows, closes, volumes

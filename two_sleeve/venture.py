@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 from .config import Config
 from .hyperliquid import HyperliquidPublic
-from .indicators import atr, donchian, ema, rsi, zscore
+from .indicators import atr, donchian, ema, rsi, sma, zscore
 from .risk import SizedTrade, size_trade
 
 # Liquid, established perps we scan for breakouts. Deliberately short list:
@@ -62,7 +62,7 @@ def scan_breakouts(client: HyperliquidPublic, cfg: Config,
         if snap is None or snap.day_volume_usd < vcfg.min_day_volume_usd:
             continue
         try:
-            highs, lows, closes = client.daily_closes(coin, LOOKBACK_DAYS)
+            highs, lows, closes, volumes = client.daily_bars(coin, LOOKBACK_DAYS)
         except ConnectionError:
             continue
         if len(closes) < vcfg.trend_ema_days + 2:
@@ -74,8 +74,12 @@ def scan_breakouts(client: HyperliquidPublic, cfg: Config,
         trend = ema(closes, vcfg.trend_ema_days)
         bar_atr = atr(highs, lows, closes, vcfg.atr_days)
         momentum = rsi(closes, 14)
+        # Volume confirmation: low-volume breakouts fail disproportionately.
+        vol_avg = sma(volumes[:-1], vcfg.volume_confirm_bars)
+        volume_ok = vol_avg == 0 or volumes[-1] > vol_avg
 
-        if last_close > chan_high and last_close > trend and momentum < vcfg.rsi_max_for_entry:
+        if (last_close > chan_high and last_close > trend
+                and momentum < vcfg.rsi_max_for_entry and volume_ok):
             stop = last_close - vcfg.stop_atr_mult * bar_atr
             trade = size_trade(coin, "long", equity, vcfg.risk_per_trade,
                                entry=last_close, stop=stop,
@@ -89,7 +93,7 @@ def scan_breakouts(client: HyperliquidPublic, cfg: Config,
                                     f"{chan_high:g}; EMA{vcfg.trend_ema_days} {trend:.4g}; "
                                     f"RSI {momentum:.0f}; ATR {bar_atr:.4g}"),
                 ))
-        elif last_close < chan_low and last_close < trend:
+        elif last_close < chan_low and last_close < trend and volume_ok:
             stop = last_close + vcfg.stop_atr_mult * bar_atr
             trade = size_trade(coin, "short", equity, vcfg.risk_per_trade,
                                entry=last_close, stop=stop,
@@ -124,7 +128,7 @@ def scan_funding_fades(client: HyperliquidPublic, cfg: Config,
         try:
             now_ms = int(time.time() * 1000)
             hist = client.funding_history(coin, now_ms - 30 * 86400_000, now_ms)
-            highs, lows, closes = client.daily_closes(coin, 30)
+            highs, lows, closes, _volumes = client.daily_bars(coin, 30)
         except ConnectionError:
             continue
         rates = [float(h["fundingRate"]) for h in hist]

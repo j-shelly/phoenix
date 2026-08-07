@@ -34,7 +34,7 @@ class FakeClient:
             raise ConnectionError("no data")
         return self._funding[coin]
 
-    def daily_closes(self, coin, days):
+    def daily_bars(self, coin, days):
         if coin not in self._candles:
             raise ConnectionError("no data")
         return self._candles[coin]
@@ -100,10 +100,10 @@ def test_carry_fee_drag_reduces_net_apr():
     assert drag == pytest.approx(expected_drag)
 
 
-def _trend_candles(n=90, start=100.0, breakout_bump=0.0):
+def _trend_candles(n=90, start=100.0, breakout_bump=0.0, breakout_volume=2.0):
     """Synthetic up-trending daily bars WITH down days (a monotonic series
     pins RSI at 100 and the entry filter rightly refuses it); final bar
-    optionally breaks out."""
+    optionally breaks out on elevated volume."""
     closes, highs, lows = [], [], []
     px = start
     for i in range(n):
@@ -117,10 +117,12 @@ def _trend_candles(n=90, start=100.0, breakout_bump=0.0):
         closes[j] = closes[j - 1] * 0.985
         highs[j] = closes[j] * 1.01
         lows[j] = closes[j] * 0.98
+    volumes = [1000.0] * n
     if breakout_bump:
         closes[-1] = max(highs[:-1][-25:]) * (1 + breakout_bump)
         highs[-1] = closes[-1] * 1.005
-    return highs, lows, closes
+        volumes[-1] = 1000.0 * breakout_volume
+    return highs, lows, closes, volumes
 
 
 def test_breakout_long_detected_and_sized():
@@ -149,10 +151,18 @@ def test_no_breakout_no_idea():
                         candles={"BTC": candles})
     # A trend without a FRESH channel break may or may not trigger depending
     # on the last bar; force the last close inside the prior channel.
-    highs, lows, closes = candles
+    highs, lows, closes, _volumes = candles
     closes[-1] = closes[-10]
     highs[-1] = closes[-1] * 1.005
     lows[-1] = closes[-1] * 0.995
+    assert scan_breakouts(client, cfg) == []
+
+
+def test_low_volume_breakout_rejected():
+    cfg = Config(total_equity_usd=500)
+    candles = _trend_candles(breakout_bump=0.02, breakout_volume=0.5)
+    client = FakeClient([snap("BTC", candles[2][-1], 0.0000125)],
+                        candles={"BTC": candles})
     assert scan_breakouts(client, cfg) == []
 
 

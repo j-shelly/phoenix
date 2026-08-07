@@ -44,8 +44,10 @@ class CarryConfig:
 
     allocation: float = 0.80
     # Don't enter unless expected NET apr (after fee amortization) clears this.
+    # Rule of thumb from practitioner research: enter carry only when trailing
+    # funding annualized > ~2x the T-bill rate (~3.6% in Aug 2026 -> ~7%).
     # Below it, doing nothing (holding USDC) is the better trade.
-    min_net_apr: float = 0.05
+    min_net_apr: float = 0.07
     # Blend of instantaneous funding vs. trailing realized when estimating.
     # Realized dominates: current funding is one hour's mood.
     realized_weight: float = 0.75
@@ -58,7 +60,7 @@ class CarryConfig:
     # Perp short leg leverage cap. 1x = margin equals notional (safest).
     max_perp_leverage: float = 2.0
     # Exit if trailing 7-day realized funding drops under this.
-    exit_apr: float = 0.03
+    exit_apr: float = 0.05
     # Expected holding period for amortizing entry/exit fees into the APR.
     expected_hold_days: int = 45
     # Below this sleeve equity, both legs can't clear exchange minimums with
@@ -81,9 +83,14 @@ class VentureConfig:
     max_open_trades: int = 2
     max_leverage: float = 3.0
     # Donchian breakout lookback (days) and trailing stop width (ATRs).
+    # 2.5x ATR per the Chandelier-exit evidence: wider stops that breathe with
+    # volatility beat tight fixed stops on 30-40%-win-rate breakout systems.
     breakout_days: int = 20
-    stop_atr_mult: float = 2.0
+    stop_atr_mult: float = 2.5
     atr_days: int = 14
+    # Only take breakouts whose bar volume exceeds the 20-bar average —
+    # low-volume breakouts fail disproportionately often.
+    volume_confirm_bars: int = 20
     trend_ema_days: int = 50
     rsi_max_for_entry: float = 80.0
     # Funding-extreme fade thresholds (advanced signal, off by default).

@@ -19,6 +19,7 @@ from .config import load_config
 from .hyperliquid import HyperliquidPublic
 from .ledger import Ledger, TradeClose, TradeOpen
 from .lessons import LESSONS
+from .sentiment import fear_greed
 from .venture import scan_breakouts, scan_funding_fades
 
 
@@ -29,6 +30,10 @@ def _client() -> HyperliquidPublic:
 def cmd_scan(args: argparse.Namespace) -> int:
     cfg = load_config()
     client = _client()
+    fng = fear_greed()
+    if fng:
+        value, label = fng
+        print(f"Fear & Greed: {value}/100 ({label}) — regime dial, not a signal\n")
     print("== Funding board (carry universe) ==")
     print(f"{'coin':<6} {'mark':>12} {'fund now':>9} {'30d real':>9} "
           f"{'net APR':>8} {'neg hrs':>8}  status")

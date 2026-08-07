@@ -174,7 +174,9 @@ def build_plan(candidates: list[CarryCandidate], cfg: Config) -> CarryPlan:
         notes=[
             f"Funding is earned on the SHORT notional (${short_notional:.2f}), "
             f"not the whole sleeve — expected ~${monthly:.2f}/month at "
-            f"{best.net_apr:.1%} net APR.",
+            f"{best.net_apr:.1%} net APR. Sleeve-level yield is roughly "
+            f"0.45x the funding APR; that capital-efficiency haircut is the "
+            "price of the margin buffer keeping the short safe.",
             f"Exit rule: close both legs if trailing 7-day funding APR < "
             f"{cfg.carry.exit_apr:.0%} (check with `two-sleeve scan`).",
             f"Rebalance rule: if {best.coin} rises so the perp loses >20% of its "
