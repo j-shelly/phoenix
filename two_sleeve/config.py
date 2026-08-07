@@ -1,7 +1,8 @@
 """All the knobs in one place, with the reasoning next to each knob.
 
-Override anything by creating data/config.json with the fields you want to
-change, e.g. {"total_equity_usd": 200, "carry": {"min_net_apr": 0.05}}.
+Override anything by creating ~/.two-sleeve/config.json (or
+$TWO_SLEEVE_DATA_DIR/config.json) with the fields you want to change, e.g.
+{"total_equity_usd": 200, "carry": {"min_net_apr": 0.05}}.
 """
 
 from __future__ import annotations
@@ -10,7 +11,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-CONFIG_PATH = Path("data") / "config.json"
+from .paths import DATA_DIR
+
+CONFIG_PATH = DATA_DIR / "config.json"
 
 
 @dataclass
@@ -121,7 +124,10 @@ class Config:
 
 def _apply_overrides(obj, overrides: dict) -> None:
     for key, value in overrides.items():
-        if not hasattr(obj, key):
+        # Validate against declared dataclass fields (not hasattr) so that
+        # property names like carry_equity get the friendly error, not a
+        # confusing AttributeError from setattr on a read-only property.
+        if key not in getattr(obj, "__dataclass_fields__", {}):
             raise KeyError(f"unknown config key: {key}")
         current = getattr(obj, key)
         if isinstance(value, dict) and hasattr(current, "__dataclass_fields__"):

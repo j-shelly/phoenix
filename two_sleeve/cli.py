@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime, timezone
 
 from . import __version__
 from .carry import build_plan, evaluate_candidates
@@ -19,6 +20,7 @@ from .config import load_config
 from .hyperliquid import HyperliquidPublic
 from .ledger import Ledger, TradeClose, TradeOpen
 from .lessons import LESSONS
+from .risk import KillSwitch
 from .sentiment import fear_greed
 from .venture import scan_breakouts, scan_funding_fades
 
@@ -35,16 +37,21 @@ def cmd_scan(args: argparse.Namespace) -> int:
         value, label = fng
         print(f"Fear & Greed: {value}/100 ({label}) — regime dial, not a signal\n")
     print("== Funding board (carry universe) ==")
-    print(f"{'coin':<6} {'mark':>12} {'fund now':>9} {'30d real':>9} "
-          f"{'net APR':>8} {'neg hrs':>8}  status")
+    print(f"{'coin':<6} {'mark':>12} {'fund now':>9} {'7d real':>8} "
+          f"{'30d real':>9} {'net APR':>8} {'neg hrs':>8}  status")
     for c in evaluate_candidates(client, cfg):
         status = "OK" if c.disqualified is None else c.disqualified
+        if c.disqualified is None and c.realized_apr_7d < cfg.carry.exit_apr:
+            status = (f"OK to enter, but 7d ({c.realized_apr_7d:.1%}) is under "
+                      f"the {cfg.carry.exit_apr:.0%} exit rule — if HOLDING "
+                      "this carry, exit it")
         print(f"{c.coin:<6} {c.mark_price:>12,.2f} {c.current_apr:>8.1%} "
-              f"{c.realized_apr_30d:>8.1%} {c.net_apr:>8.1%} "
-              f"{c.pct_hours_negative:>7.0%}  {status}")
-    print("\n'fund now' = this hour's funding annualized; '30d real' = what "
-          "shorts actually earned over 30 days; 'net APR' = blended estimate "
-          "minus fees. Trust the 30d column.")
+              f"{c.realized_apr_7d:>7.1%} {c.realized_apr_30d:>8.1%} "
+              f"{c.net_apr:>8.1%} {c.pct_hours_negative:>7.0%}  {status}")
+    print("\n'fund now' = this hour's funding annualized; '7d real' = the EXIT "
+          "dial for open carries; '30d real' = what shorts actually earned "
+          "over 30 days; 'net APR' = blended estimate minus fees. Trust the "
+          "realized columns.")
     return 0
 
 
@@ -78,14 +85,31 @@ def cmd_plan(args: argparse.Namespace) -> int:
     # ---- Sleeve 2
     print("\n== SLEEVE 2: venture (20%) ==")
     open_venture = [t for t in led.open_trades() if t["sleeve"] == "venture"]
-    ideas = scan_breakouts(client, cfg) + scan_funding_fades(client, cfg)
-    if len(open_venture) >= cfg.venture.max_open_trades:
+    # Monthly kill switch on REAL-money PnL only (paper wins must never
+    # mask real losses), scoped to the current calendar month.
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    real_month_pnl = led.summary("venture", paper=False, month=month)["net_pnl_usd"]
+    ks = KillSwitch(month_start_equity_usd=cfg.venture_equity,
+                    max_open_trades=cfg.venture.max_open_trades)
+    sleeve_now = cfg.venture_equity + min(real_month_pnl, 0.0)
+    if ks.halted(sleeve_now):
+        print(f"ACTION: none — KILL SWITCH. Real losses this month "
+              f"(${-real_month_pnl:.2f}) have spent the ${cfg.venture_equity:.2f} "
+              "budget. No new venture trades until next month's deposit. "
+              "This rule is the strategy.")
+        ideas = []
+    elif len(open_venture) >= cfg.venture.max_open_trades:
         print(f"ACTION: none — already at max {cfg.venture.max_open_trades} open trades. "
               "Manage what you have.")
-    elif not ideas:
+        ideas = []
+    else:
+        # Size against what's actually left of the sleeve, not the nominal 20%.
+        ideas = (scan_breakouts(client, cfg, sleeve_equity_usd=sleeve_now)
+                 + scan_funding_fades(client, cfg, sleeve_equity_usd=sleeve_now))
+    if not ideas and not ks.halted(sleeve_now) and len(open_venture) < cfg.venture.max_open_trades:
         print("ACTION: none. No fresh signals today — no trade IS the default "
               "state of this sleeve. Doing nothing is a position.")
-    else:
+    elif ideas:
         for i, idea in enumerate(ideas, 1):
             t = idea.trade
             print(f"IDEA {i}: {idea.signal} {t.symbol}")
@@ -107,23 +131,30 @@ def cmd_plan(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     cfg = load_config()
     led = Ledger()
+    print(f"journal: {led.path}\n")
     for sleeve in ("carry", "venture"):
-        s = led.summary(sleeve)
-        print(f"== {sleeve} ==")
-        for k, v in s.items():
-            print(f"  {k}: {v}")
-    total = led.summary()
-    print(f"== total ==\n  net PnL: ${total['net_pnl_usd']}")
+        for is_paper, label in ((False, "real"), (True, "paper")):
+            s = led.summary(sleeve, paper=is_paper)
+            if s["trades"] == 0 and s["open_trades"] == 0:
+                continue
+            print(f"== {sleeve} ({label}) ==")
+            for k, v in s.items():
+                print(f"  {k}: {v}")
+    total_real = led.summary(paper=False)
+    print(f"== total (real money) ==\n  net PnL: ${total_real['net_pnl_usd']}")
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
     budget = cfg.venture_equity
-    vent = led.summary("venture")["net_pnl_usd"]
+    vent = led.summary("venture", paper=False, month=month)["net_pnl_usd"]
     if vent < 0 and abs(vent) >= budget:
-        print(f"\n!! Venture sleeve has spent its ${budget:.2f} budget "
-              f"(net {vent}). STOP opening venture trades until next deposit.")
+        print(f"\n!! Venture sleeve has spent its ${budget:.2f} budget this "
+              f"month (real net {vent}). The kill switch in `plan` is active "
+              "until next deposit.")
     return 0
 
 
 def cmd_log(args: argparse.Namespace) -> int:
     led = Ledger()
+    print(f"journal: {led.path}")
     if args.log_action == "open":
         rec = TradeOpen(sleeve=args.sleeve, symbol=args.symbol, side=args.side,
                         notional_usd=args.notional, entry=args.entry,

@@ -123,8 +123,8 @@ def carry_liquidation_buffer(
     leverage: float,
     maintenance_margin_fraction: float,
 ) -> float:
-    """For the SHORT PERP leg of the carry trade: how far (as a fraction of
-    entry price) can price rise before liquidation?
+    """For the SHORT PERP leg of the carry trade: the estimated liquidation
+    PRICE — the absolute level price must rise to before liquidation.
 
     Approximation for an isolated short: with initial margin 1/leverage and
     maintenance margin m, liquidation is near price * (1 + 1/L - m).

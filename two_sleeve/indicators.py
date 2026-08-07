@@ -67,8 +67,8 @@ def atr(
     """Average True Range (Wilder smoothing): the market's typical bar-to-bar
     movement in price units.
 
-    ATR is how we size positions and place stops: a stop 2*ATR away is "outside
-    normal noise", and risking a fixed dollar amount per trade means
+    ATR is how we size positions and place stops: a stop a couple of ATRs away
+    is "outside normal noise", and risking a fixed dollar amount per trade means
     size = risk_dollars / stop_distance. Volatile market -> wider stop ->
     smaller position. That one idea is most of risk management.
     """

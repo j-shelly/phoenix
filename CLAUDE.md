@@ -24,7 +24,10 @@ docs/going-live.md for the intended graduation path.
   conventions.
 - All USD amounts are floats named `*_usd`; rates/fractions are decimals
   (0.045% = 0.00045).
-- `data/` is gitignored user state — never commit it, never write elsewhere.
+- User state (ledger + config overrides) lives in `~/.two-sleeve/` by
+  default, overridable via `TWO_SLEEVE_DATA_DIR` (repo-local `data/` is
+  gitignored for that case). Never commit state; `paths.py` is the single
+  source of truth for its location.
 - Tests: `python3 -m pytest tests/ -q`. Strategy changes need a test that
   pins the new behavior. Network-touching code gets a fake-client test.
 - Never commit secrets; `.gitignore` blocks `.env`/`*.key` — keep it that way.

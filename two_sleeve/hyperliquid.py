@@ -85,11 +85,23 @@ class HyperliquidPublic:
         meta, ctxs = self._post({"type": "metaAndAssetCtxs"})
         return meta["universe"], ctxs
 
+    # The API caps fundingHistory responses at 500 entries (~20.8 days of
+    # hourly rates), so a 30-day request silently truncates without paging.
+    FUNDING_PAGE_CAP = 500
+
     def funding_history(self, coin: str, start_ms: int, end_ms: int | None = None) -> list[dict]:
-        body: dict[str, Any] = {"type": "fundingHistory", "coin": coin, "startTime": start_ms}
-        if end_ms is not None:
-            body["endTime"] = end_ms
-        return self._post(body)
+        out: list[dict] = []
+        cursor = start_ms
+        while True:
+            body: dict[str, Any] = {"type": "fundingHistory", "coin": coin,
+                                    "startTime": cursor}
+            if end_ms is not None:
+                body["endTime"] = end_ms
+            batch = self._post(body)
+            out.extend(batch)
+            if len(batch) < self.FUNDING_PAGE_CAP:
+                return out
+            cursor = int(batch[-1]["time"]) + 1
 
     def candles(self, coin: str, interval: str, start_ms: int, end_ms: int) -> list[dict]:
         """interval: "1m","5m","15m","1h","4h","1d",... Returns bars with keys
@@ -152,12 +164,22 @@ class HyperliquidPublic:
         }
 
     def daily_bars(self, coin: str, days: int) -> tuple[list[float], list[float], list[float], list[float]]:
-        """(highs, lows, closes, volumes) from daily candles, oldest first.
-        Volume is in base units — only meaningful relative to itself."""
+        """(highs, lows, closes, volumes) from COMPLETED daily candles,
+        oldest first. Volume is in base units — only meaningful relative to
+        itself.
+
+        The still-forming current-day (UTC) candle is dropped: its close is
+        just the live price and its volume covers only part of a day, so
+        signals computed on it would appear and vanish with the wall clock
+        and the breakout volume filter would compare a partial day against
+        full-day averages.
+        """
         now_ms = int(time.time() * 1000)
-        start_ms = now_ms - (days + 2) * 24 * 3600 * 1000
+        day_ms = 24 * 3600 * 1000
+        start_ms = now_ms - (days + 2) * day_ms
         bars = self.candles(coin, "1d", start_ms, now_ms)
         bars.sort(key=lambda b: b["t"])
+        bars = [b for b in bars if int(b["t"]) + day_ms <= now_ms]
         highs = [float(b["h"]) for b in bars]
         lows = [float(b["l"]) for b in bars]
         closes = [float(b["c"]) for b in bars]

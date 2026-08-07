@@ -63,7 +63,8 @@ that's ~1.9% APR of drag — priced into the scanner's `net_apr`.
    30-day realized, 25% on current) minus fee drag ≥ **7% APR**; funding
    negative in <35% of recent hours; open interest and daily volume ≥ $10M.
 2. **Structure**: 45% of sleeve in spot, 55% as USDC margin against an
-   equal-to-spot short → **~0.8x leverage**, liquidation ≈ +80% away.
+   equal-to-spot short → **~0.8x leverage**, liquidation ≈ +120% away
+   (price must more than double against the short).
    Isolated margin, so the blast radius is the position.
 3. **Rebalance**: if price rallies enough that the perp side loses >20% of
    its margin, top up margin from the spot side or wallet. Legs stay equal.
@@ -107,7 +108,7 @@ whole sleeve in any single yield wrapper.
 | Risk | Reality check | Mitigation |
 |---|---|---|
 | Funding flips negative | 46-day streak in 2026; whole quarters can pay ~0 | exit rule at 5%; hurdle at 7% |
-| Short-leg liquidation in a melt-up | at 0.8x, needs ~+80% before trouble | leverage cap, weekly check, top-up rule |
+| Short-leg liquidation in a melt-up | at 0.8x, needs ~+120% before trouble | leverage cap, weekly check, top-up rule |
 | ADL (exchange force-closes your profitable short) | happened on HL Oct 10, 2025 | small size, accept as tail risk, re-hedge if it fires |
 | Basis moves against exit | perp can trade under spot in stress | exit with limit orders, don't panic-market-out |
 | Fee churn | round trip ≈ 3 weeks of carry at 5% APR | hold 45+ days, maker orders when possible |

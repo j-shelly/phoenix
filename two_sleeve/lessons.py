@@ -54,7 +54,7 @@ trade may cost you (sleeve 2 uses 30% of the sleeve). Then:
 
   notional = risk_dollars x entry / |entry - stop|
 
-The stop distance comes from volatility (2 x ATR), not from a round number.
+The stop distance comes from volatility (2.5 x ATR), not from a round number.
 Consequences worth internalizing:
   * Wider stop -> SMALLER position, same risk. Vol decides size, not vibes.
   * The exchange minimum ($10 on Hyperliquid) is a floor on notional. If

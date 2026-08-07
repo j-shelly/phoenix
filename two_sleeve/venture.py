@@ -69,7 +69,9 @@ def scan_breakouts(client: HyperliquidPublic, cfg: Config,
             continue
 
         last_close = closes[-1]
-        # Channel from bars BEFORE today's bar — today must break yesterday's channel.
+        # Channel from bars BEFORE the latest completed bar — that bar must
+        # break the channel of the days preceding it. (daily_bars already
+        # dropped the still-forming current-day candle.)
         chan_high, chan_low = donchian(highs[:-1], lows[:-1], vcfg.breakout_days)
         trend = ema(closes, vcfg.trend_ema_days)
         bar_atr = atr(highs, lows, closes, vcfg.atr_days)

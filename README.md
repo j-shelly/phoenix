@@ -45,7 +45,7 @@ the graduation ladder to automation.
 
 ```bash
 pip install -e ".[dev]"     # or: pip install requests, and use python -m two_sleeve
-python -m pytest tests/ -q  # 34 tests should pass
+python -m pytest tests/ -q  # all tests should pass
 
 two-sleeve scan             # funding board + Fear&Greed: is carry being paid?
 two-sleeve plan             # today's instructions for both sleeves
@@ -60,7 +60,7 @@ two-sleeve report           # your PnL, win rate, and loss-budget status
 ACTION: enter ETH carry
   1. On Hyperliquid SPOT: buy $36.00 of ETH
   2. On Hyperliquid PERPS: with $44.00 USDC margin, SHORT $36.00 of ETH-PERP (0.82x, isolated)
-  3. Estimated liquidation on the short: ~ +80% above entry
+  3. Estimated liquidation on the short: ~4,180.00 (price must rise that far against you)
   Expected: ~7.9% net APR ≈ $0.24/month at this size
 ```
 
@@ -109,5 +109,9 @@ two_sleeve/
   ledger.py        append-only trade journal (data/ledger.jsonl)
   cli.py           scan / plan / report / log / explain
 docs/              strategy, venues, month-1 checklist, going-live
-tests/             34 tests, all offline (fake exchange fixtures)
+tests/             offline test suite (fake exchange fixtures)
 ```
+
+State (journal + config overrides) lives in `~/.two-sleeve/` by default;
+set `TWO_SLEEVE_DATA_DIR` to relocate it (e.g. `TWO_SLEEVE_DATA_DIR=./data`
+to keep it inside a checkout). `report` and `log` print the path in use.

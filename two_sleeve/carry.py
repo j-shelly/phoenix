@@ -32,6 +32,7 @@ class CarryCandidate:
     coin: str
     mark_price: float
     current_apr: float          # instantaneous funding, annualized
+    realized_apr_7d: float      # trailing 7-day realized funding — the EXIT dial
     realized_apr_30d: float     # trailing realized funding, annualized
     expected_apr: float         # blended estimate BEFORE fees
     net_apr: float              # after amortized entry+exit fees
@@ -71,6 +72,7 @@ def evaluate_candidates(client: HyperliquidPublic, cfg: Config) -> list[CarryCan
             continue
         try:
             realized = client.funding_aprs_realized(coin, days=ccfg.realized_days)
+            realized_7d = client.funding_aprs_realized(coin, days=7)
         except ConnectionError:
             out.append(_disqualified(coin, "funding history unavailable"))
             continue
@@ -97,6 +99,7 @@ def evaluate_candidates(client: HyperliquidPublic, cfg: Config) -> list[CarryCan
             coin=coin,
             mark_price=snap.mark_price,
             current_apr=snap.funding_apr,
+            realized_apr_7d=realized_7d["mean_apr"],
             realized_apr_30d=realized["mean_apr"],
             expected_apr=expected,
             net_apr=net,
@@ -111,7 +114,8 @@ def evaluate_candidates(client: HyperliquidPublic, cfg: Config) -> list[CarryCan
 
 def _disqualified(coin: str, reason: str) -> CarryCandidate:
     return CarryCandidate(coin=coin, mark_price=0.0, current_apr=0.0,
-                          realized_apr_30d=0.0, expected_apr=0.0, net_apr=0.0,
+                          realized_apr_7d=0.0, realized_apr_30d=0.0,
+                          expected_apr=0.0, net_apr=0.0,
                           pct_hours_negative=1.0, open_interest_usd=0.0,
                           day_volume_usd=0.0, disqualified=reason)
 
@@ -122,8 +126,9 @@ def build_plan(candidates: list[CarryCandidate], cfg: Config) -> CarryPlan:
     Split of the sleeve between the two legs: the spot leg IS the position
     (it earns nothing but the hedge), the perp margin is the buffer that
     keeps the short alive. We put ~45% into spot, keep ~55% as USDC margin
-    against an equal-to-spot short — i.e. perp leverage < 1x, liquidation
-    roughly a +80% move away. Boring by construction.
+    against an equal-to-spot short — i.e. perp leverage ~0.82x, liquidation
+    roughly a +120% move away (price must more than double against the
+    short). Boring by construction.
     """
     sleeve = cfg.carry_equity
     tradeable = [c for c in candidates if c.disqualified is None]
@@ -159,6 +164,13 @@ def build_plan(candidates: list[CarryCandidate], cfg: Config) -> CarryPlan:
     perp_margin = round(sleeve - spot_notional, 2)
     short_notional = spot_notional            # delta-neutral: legs match
     leverage = short_notional / perp_margin
+    # The 45/55 split keeps leverage ~0.82x, but enforce the config cap so a
+    # future split change can't silently exceed it. Legs stay matched; the
+    # excess just sits as USDC.
+    if leverage > cfg.carry.max_perp_leverage:
+        short_notional = round(perp_margin * cfg.carry.max_perp_leverage, 2)
+        spot_notional = short_notional
+        leverage = short_notional / perp_margin
     liq = carry_liquidation_buffer(best.mark_price, leverage,
                                    HL_MAINTENANCE_MARGIN_APPROX)
     monthly = short_notional * best.net_apr / 12.0
