@@ -41,17 +41,39 @@ the graduation ladder to automation.
   hacks, smart-contract bugs. Only fund this with the $100/month you were
   given to burn. **None of this is financial advice.**
 
-## Quickstart
+## Quickstart (Ubuntu / WSL / any Linux or macOS)
+
+Modern Ubuntu (23.04+, including WSL) marks the system Python "externally
+managed" (PEP 668), so a bare `pip install` fails with
+`error: externally-managed-environment`. Use the repo's virtual-env setup —
+it's the right way on every platform anyway:
 
 ```bash
-pip install -e ".[dev]"     # or: pip install requests, and use python -m two_sleeve
-python -m pytest tests/ -q  # all tests should pass
+sudo apt update && sudo apt install -y python3-venv   # Ubuntu/WSL only, once
+./scripts/setup.sh          # creates .venv/, installs, runs the tests
+source .venv/bin/activate   # repeat in each new shell (or use .venv/bin/two-sleeve)
 
 two-sleeve scan             # funding board + Fear&Greed: is carry being paid?
 two-sleeve plan             # today's instructions for both sleeves
 two-sleeve explain funding  # start here; then: carry, sizing, liquidation, fees
 two-sleeve report           # your PnL, win rate, and loss-budget status
 ```
+
+<details>
+<summary>Manual equivalent, if you prefer to see every step</summary>
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+python -m pytest tests/ -q  # all tests should pass
+```
+</details>
+
+**WSL note:** WSL2's clock can drift after your laptop sleeps, and the
+scanner's "completed daily candle" logic uses system time. If `scan`/`plan`
+ever look stale after a resume, run `sudo hwclock -s` (or `wsl --shutdown`
+from Windows) to resync.
 
 `two-sleeve plan` output is written in UI-click terms, e.g.:
 
@@ -106,7 +128,7 @@ two_sleeve/
   venture.py       sleeve 2 engine: breakout/breakdown signals, funding-fade (off)
   hyperliquid.py   read-only public-API client (no keys anywhere in this repo)
   sentiment.py     Fear & Greed regime dial
-  ledger.py        append-only trade journal (data/ledger.jsonl)
+  ledger.py        append-only trade journal (~/.two-sleeve/ledger.jsonl)
   cli.py           scan / plan / report / log / explain
 docs/              strategy, venues, month-1 checklist, going-live
 tests/             offline test suite (fake exchange fixtures)

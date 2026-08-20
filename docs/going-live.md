@@ -22,9 +22,15 @@ The ladder — spend at least a couple of weeks on each rung:
   short, at least 3 venture trades with stops honored, zero "oops" clicks.
 
 ## Rung 2 — semi-automation: alerts, not orders (month 2-3)
-* Cron the scanner so it emails/notifies instead of you remembering:
-  `0 13 * * * cd ~/phoenix && two-sleeve plan > /tmp/plan.txt` (then pipe
-  to mail, a Discord webhook, whatever). The human still places orders.
+* Cron the scanner so it emails/notifies instead of you remembering.
+  Cron does NOT activate virtual environments, so call the venv's binary
+  by absolute path:
+  `0 13 * * * $HOME/phoenix/.venv/bin/two-sleeve plan > /tmp/plan.txt 2>&1`
+  (then pipe to mail, a Discord webhook, whatever). On WSL, cron isn't
+  running unless you've enabled systemd or started it (`sudo service cron
+  start`); a Windows Task Scheduler job running
+  `wsl -e $HOME/phoenix/.venv/bin/two-sleeve plan` is often easier.
+  The human still places orders.
 * This is also where you can wire `vulcan`'s MCP server into Claude Code
   and ask it to check Phoenix state conversationally.
 
@@ -32,7 +38,7 @@ The ladder — spend at least a couple of weeks on each rung:
 Only worth it if rungs 0-2 showed the process works and the clicking is the
 bottleneck. What it takes, on each venue:
 
-**Hyperliquid** (`pip install 'two-sleeve[live]'` pulls the official
+**Hyperliquid** (`.venv/bin/pip install -e '.[live]'` pulls the official
 `hyperliquid-python-sdk`):
 1. Create an **API/agent wallet** (`Exchange.approve_agent()` or the app's
    API page). Agent wallets can sign orders but **cannot withdraw funds** —

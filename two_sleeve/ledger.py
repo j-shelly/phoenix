@@ -1,4 +1,5 @@
-"""A dead-simple trade journal, stored as JSON lines in data/ledger.jsonl.
+"""A dead-simple trade journal, stored as JSON lines in
+~/.two-sleeve/ledger.jsonl (see paths.py for the TWO_SLEEVE_DATA_DIR override).
 
 Every trade — paper or real, carry or venture — gets journaled here. The
 single highest-leverage habit in trading is writing down why you entered

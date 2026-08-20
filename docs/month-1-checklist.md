@@ -19,7 +19,9 @@ not returns. Check boxes in order.
 - [ ] Install Phoenix's official CLI: `vulcan` (github.com/Ellipsis-Labs/
       vulcan-cli) → `vulcan paper init --balance 10000` → place 5 paper
       trades to learn order types (limit, market, stop) with zero risk.
-- [ ] Install this repo: `pip install -e .` → run `two-sleeve scan` and
+- [ ] Install this repo: `./scripts/setup.sh`, then
+      `source .venv/bin/activate` (Ubuntu/WSL: `sudo apt install -y
+      python3-venv` first — see README Quickstart) → run `two-sleeve scan` and
       `two-sleeve explain funding`. Read all seven lessons this week.
 - [ ] Keep the remaining $80 as USDC in the wallet for now.
 
