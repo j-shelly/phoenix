@@ -16,6 +16,13 @@ trades: Donchian breakouts with ATR trailing stops, sized so the sleeve can
 die over a month of trades but never in one. This sleeve's real product is
 the trade journal and what you learn from it. Expected value: tuition.
 
+**YOLO mode (optional, outside the system).** `two-sleeve yolo` prints
+deliberately reckless high-leverage ideas — chase the day's biggest pump,
+catch its sharpest knife, fade its most extreme funding rate — for burning
+non-withdrawable test credits on Phoenix. Getting liquidated is part of the
+curriculum. See [YOLO mode](#yolo-mode-the-house-money-game) below before
+touching it.
+
 The system runs in **advisor mode**: it reads public market data (no keys,
 no custody, it cannot touch funds) and prints exactly what to do in the
 exchange UI. You click. That's deliberate — see `docs/going-live.md` for
@@ -55,6 +62,7 @@ source .venv/bin/activate   # repeat in each new shell (or use .venv/bin/two-sle
 
 two-sleeve scan             # funding board + Fear&Greed: is carry being paid?
 two-sleeve plan             # today's instructions for both sleeves
+two-sleeve yolo             # house-money degen ideas (outside the system — see below)
 two-sleeve explain funding  # start here; then: carry, sizing, liquidation, fees
 two-sleeve report           # your PnL, win rate, and loss-budget status
 ```
@@ -95,6 +103,75 @@ ACTION: enter ETH carry
 | Weekly (15 min) | Carry health: funding still paying? margin buffer OK? Journal review | `two-sleeve scan`, `report` |
 | Monthly | Grade the month: sleeve PnL, lessons, one config improvement | `two-sleeve report` |
 | Event days | Flatten/halve venture positions before FOMC & CPI prints | calendar in `docs/strategy.md` |
+| When the mood strikes | A YOLO trade on Phoenix — isolated margin, journaled, no more than the printed stake | `two-sleeve yolo` |
+
+## YOLO mode: the house-money game
+
+The Phoenix test program grants ~$100/month of credits you cannot withdraw:
+profits aren't yours to keep, and unspent caution is wasted. Under those
+rules — and *only* those rules — high-leverage trades that sometimes end in
+liquidation are not a discipline failure; they're the cheapest visceral
+lesson in margin mechanics you'll ever get. YOLO mode exists for exactly
+this. It scans **every** liquid perp (memecoins included, unlike the
+venture sleeve's six majors) and prints at most three ideas a day:
+
+* **moonshot** — long the day's biggest 24h pump (≥10% move);
+* **knife_catch** — long the day's biggest dump (dead-cat bounces are real;
+  so is the second leg down);
+* **squeeze** — fade the most extreme funding rate (|APR| ≥ 50%), collecting
+  funding while standing in front of the crowd.
+
+### Usage
+
+```bash
+two-sleeve yolo
+```
+
+```
+== YOLO MODE — house-money game, not the strategy ==
+Stake per idea: $10.00 of the $20.00 venture sleeve at up to 10x. ...
+
+IDEA 3: squeeze — SHORT PUMP
+  On Phoenix: short PUMP-PERP with $10.00 margin at 10x ISOLATED = $100.00 position
+  entry ~0.004675, est. liquidation ~0.00490875 (a 5.0% move against you)
+  why: funding +98% APR — longs are crowded and paying through the nose. ...
+```
+
+To take one, in the Phoenix UI: pick the market, set margin mode to
+**ISOLATED** (non-negotiable — it means a liquidation eats one $10 stake,
+never the account, so $100 buys several lessons instead of one), set the
+printed leverage, and enter with the printed margin. Then journal it
+*before* you get distracted watching the candles:
+
+```bash
+two-sleeve log open --sleeve yolo --symbol PUMP --side short \
+  --notional 100 --entry 0.004675 \
+  --thesis "fading +98% APR crowded longs; expect liq or squeeze" --real
+
+# ...later, win, lose, or liquidated (exit = liq price, pnl = -margin):
+two-sleeve log close --ref <id printed at open> --exit 0.00491 \
+  --pnl -10 --lesson "5% is nothing at 10x; watched it go in 40 minutes"
+```
+
+`two-sleeve report` shows YOLO results under their own sleeve, kept apart
+from venture stats — intentional casino losses must never pollute the
+disciplined sleeve's win rate.
+
+### Knobs (`~/.two-sleeve/config.json`)
+
+```json
+{"yolo": {"stake_fraction": 0.5, "leverage": 10.0,
+          "min_day_move": 0.10, "min_abs_funding_apr": 0.50}}
+```
+
+### What still applies, even here
+
+Advisor-only (it prints, you click); isolated margin; stakes below the
+exchange minimum are refused, not sized up; markets under $5M daily volume
+are skipped. Signals come from Hyperliquid data, so confirm the coin is
+listed on Phoenix and read the app's own leverage/liquidation numbers
+before clicking. And the one rule that makes the whole game safe: **fund
+this with test credits only, never with money you'd mind losing.**
 
 ## Where each sleeve trades and why
 
@@ -126,10 +203,11 @@ two_sleeve/
   risk.py          position sizing + kill switch — the most important file
   carry.py         sleeve 1 engine: funding scanner, net-APR hurdles, plan builder
   venture.py       sleeve 2 engine: breakout/breakdown signals, funding-fade (off)
+  yolo.py          house-money degen mode: pump-chase / knife-catch / funding-squeeze
   hyperliquid.py   read-only public-API client (no keys anywhere in this repo)
   sentiment.py     Fear & Greed regime dial
   ledger.py        append-only trade journal (~/.two-sleeve/ledger.jsonl)
-  cli.py           scan / plan / report / log / explain
+  cli.py           scan / plan / yolo / report / log / explain
 docs/              strategy, venues, month-1 checklist, going-live
 tests/             offline test suite (fake exchange fixtures)
 ```
