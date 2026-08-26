@@ -105,6 +105,26 @@ class VentureConfig:
 
 
 @dataclass
+class YoloConfig:
+    """YOLO mode: house-money entertainment trades on Phoenix, deliberately
+    OUTSIDE the two-sleeve risk framework. See yolo.py for why this exists
+    and which rules still apply even here."""
+
+    # Margin staked per idea, as a fraction of the venture sleeve. At 0.5 the
+    # sleeve buys you ~2 liquidation lessons per month, not 1.
+    stake_fraction: float = 0.5
+    # Target leverage; capped by each market's own max. 10x means a ~9% move
+    # against you is liquidation — fast enough to feel, slow enough to watch.
+    leverage: float = 10.0
+    # 24h move that counts as a pump worth chasing / knife worth catching.
+    min_day_move: float = 0.10
+    # |funding APR| that counts as a crowd worth standing in front of.
+    min_abs_funding_apr: float = 0.50
+    # Even degens skip dead markets: thin books make fills, not fun.
+    min_day_volume_usd: float = 5_000_000.0
+
+
+@dataclass
 class Config:
     total_equity_usd: float = 100.0
     # Exchange minimum order (Hyperliquid: $10 minimum order value).
@@ -112,6 +132,7 @@ class Config:
     fees: Fees = field(default_factory=Fees)
     carry: CarryConfig = field(default_factory=CarryConfig)
     venture: VentureConfig = field(default_factory=VentureConfig)
+    yolo: YoloConfig = field(default_factory=YoloConfig)
 
     @property
     def carry_equity(self) -> float:

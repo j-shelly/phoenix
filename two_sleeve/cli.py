@@ -3,6 +3,7 @@
 Commands:
   scan      Market overview: funding board + trend state of the majors.
   plan      The advisor: what to do TODAY in both sleeves, in UI-click terms.
+  yolo      House-money degen ideas — outside the system, on purpose.
   report    Your ledger: PnL, win rate, sleeve budgets.
   log       Journal a trade open/close (paper or real).
   explain   Mini-lessons: funding, carry, sizing, liquidation, fees.
@@ -23,6 +24,7 @@ from .lessons import LESSONS
 from .risk import KillSwitch
 from .sentiment import fear_greed
 from .venture import scan_breakouts, scan_funding_fades
+from .yolo import scan_yolo
 
 
 def _client() -> HyperliquidPublic:
@@ -128,11 +130,45 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_yolo(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    client = _client()
+    stake = cfg.venture_equity * cfg.yolo.stake_fraction
+    print("== YOLO MODE — house-money game, not the strategy ==")
+    print(f"Stake per idea: ${stake:.2f} of the ${cfg.venture_equity:.2f} venture "
+          f"sleeve at up to {cfg.yolo.leverage:g}x. Expected outcome: this stake "
+          "goes to zero. Here — and ONLY here — that's fine: the credits are "
+          "free, profits aren't yours to keep, and a liquidation watched "
+          "closely is the best margin lesson money can't buy.")
+    print("Two rules still apply: ISOLATED margin only (one liquidation eats one "
+          "stake, never the account), and journal every trade — the lesson is "
+          "the only PnL you keep.\n")
+    ideas = scan_yolo(client, cfg)
+    if not ideas:
+        print("No idea today: nothing pumping, dumping, or crowded enough to be "
+              "fun. Even the casino has quiet nights — check back tomorrow.")
+    for i, idea in enumerate(ideas, 1):
+        print(f"IDEA {i}: {idea.flavor} — {idea.side.upper()} {idea.symbol}")
+        print(f"  On Phoenix: {idea.side} {idea.symbol}-PERP with "
+              f"${idea.margin_usd:.2f} margin at {idea.leverage:g}x ISOLATED "
+              f"= ${idea.notional_usd:.2f} position")
+        print(f"  entry ~{idea.entry:g}, est. liquidation ~{idea.est_liq_price:g} "
+              f"(a {idea.liq_move:.1%} move against you)")
+        print(f"  why: {idea.why}")
+    if ideas:
+        print("\nSignals come from Hyperliquid data — confirm the coin is listed "
+              "on Phoenix and read the app's own leverage/liquidation numbers "
+              "before clicking.")
+        print("Journal it: `two-sleeve log open --sleeve yolo --symbol "
+              f"{ideas[0].symbol} --side {ideas[0].side} ... --real`")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     cfg = load_config()
     led = Ledger()
     print(f"journal: {led.path}\n")
-    for sleeve in ("carry", "venture"):
+    for sleeve in ("carry", "venture", "yolo"):
         for is_paper, label in ((False, "real"), (True, "paper")):
             s = led.summary(sleeve, paper=is_paper)
             if s["trades"] == 0 and s["open_trades"] == 0:
@@ -195,12 +231,13 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("scan", help="funding board + market state").set_defaults(fn=cmd_scan)
     sub.add_parser("plan", help="today's advisor output for both sleeves").set_defaults(fn=cmd_plan)
+    sub.add_parser("yolo", help="house-money degen ideas (outside the system)").set_defaults(fn=cmd_yolo)
     sub.add_parser("report", help="ledger PnL and sleeve budgets").set_defaults(fn=cmd_report)
 
     lg = sub.add_parser("log", help="journal a trade")
     lg_sub = lg.add_subparsers(dest="log_action", required=True)
     lo = lg_sub.add_parser("open")
-    lo.add_argument("--sleeve", choices=["carry", "venture"], required=True)
+    lo.add_argument("--sleeve", choices=["carry", "venture", "yolo"], required=True)
     lo.add_argument("--symbol", required=True)
     lo.add_argument("--side", choices=["long", "short", "carry"], required=True)
     lo.add_argument("--notional", type=float, required=True)

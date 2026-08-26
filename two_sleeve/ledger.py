@@ -32,7 +32,7 @@ def _now_iso() -> str:
 
 @dataclass
 class TradeOpen:
-    sleeve: str               # "carry" or "venture"
+    sleeve: str               # "carry", "venture", or "yolo"
     symbol: str
     side: str                 # "long" | "short" | "carry" (spot+perp pair)
     notional_usd: float

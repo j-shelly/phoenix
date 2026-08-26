@@ -10,6 +10,7 @@ docs/going-live.md for the intended graduation path.
 ## Layout
 - `two_sleeve/hyperliquid.py` — read-only public-API client (no keys anywhere)
 - `two_sleeve/carry.py` / `venture.py` — the two sleeve engines
+- `two_sleeve/yolo.py` — house-money degen mode (`two-sleeve yolo`); see below
 - `two_sleeve/risk.py` — sizing + kill switch; touch with extreme care
 - `two_sleeve/indicators.py` — pure math, fully unit-tested
 - `two_sleeve/ledger.py` — append-only JSONL trade journal in `data/`
@@ -38,3 +39,9 @@ docs/going-live.md for the intended graduation path.
   leverage stays ≤ 2x.
 - Exchange parameters (fees, min sizes, leverage) drift — code should read
   them from APIs where possible and docs mark researched values with dates.
+- YOLO mode (`yolo.py`) is a LOUD, user-requested exception: the Phoenix test
+  program grants non-withdrawable monthly credits, so it runs high leverage
+  where liquidation is an expected learning outcome. It bypasses venture
+  sizing/kill-switch by design but keeps: advisor-only, isolated margin,
+  refuse-below-minimum, liquid markets only, own ledger sleeve ("yolo") so
+  venture stats stay clean. Do not extend its exceptions to the real sleeves.
